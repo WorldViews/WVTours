@@ -1,183 +1,67 @@
 
 "use strict";
 
-var WVL = {};
-
-WVL.display = null;
-WVL.trackDescs = {};
-WVL.tracks = {};
-WVL.currentTrack = null;
-WVL.cursor = null;
-WVL.currentPlayTime = 0;
-WVL.lastSeekTime = 0;
-WVL.playSpeed = 0;
-WVL.homeLatLng = null;
-WVL.homeBounds = null;
-WVL.homeZoom = 10;
-WVL.trackWatchers = [];
-WVL.toursUrl = "/data/tours_data.json";
-WVL.indoorMaps = {};
-WVL.SIO_URL = window.location.protocol + '//' + window.location.hostname + ":7000/";
-WVL.sock = null;
-WVL.clientMarkers = {};
-WVL.trackLayer = null;
-WVL.layers = {};
-WVL.layerControl = null;
-WVL.osm = null;
-WVL.googleSat = null;
-
-WVL.ImageLayer = class {
-    constructor(imageUrl, opts) {
-        this.map = WVL.map;
-        this.marker1 = null;
-        this.marker2 = null;
-        this.marker3 = null;
-        if (!(opts.p1 && opts.width && opts.height)) {
-            console.log("**** bad arguments to WV.ImageLayer ****");
-            return;
-        }
-        this.width = opts.width;
-        this.height = opts.height;
-        this.heading = opts.heading || 0;
-        console.log("width: " + this.width);
-        console.log("height: " + this.height);
-        console.log("heading: " + this.heading);
-        this.point1 = new L.LatLng(opts.p1[0], opts.p1[1]);
-        this._updatePoints();
-        this.overlay = L.imageOverlay.rotated(imageUrl, this.point1, this.point2, this.point3, {
-            opacity: 0.8,
-            interactive: false
-        });
-        this.overlay.addTo(WVL.map);
-        //this.addGrips();
-        //this.fitBounds();
+class WVLApp {
+    constructor() {
+        this.display = null;
+        this.trackDescs = {};
+        this.tracks = {};
+        this.currentTrack = null;
+        this.cursor = null;
+        this.currentPlayTime = 0;
+        this.lastSeekTime = 0;
+        this.playSpeed = 0;
+        this.homeLatLng = null;
+        this.homeBounds = null;
+        this.homeZoom = 10;
+        this.trackWatchers = [];
+        this.toursUrl = "/data/tours_data.json";
+        this.indoorMaps = {};
+        this.SIO_URL = window.location.protocol + '//' + window.location.hostname + ":7000/";
+        this.sock = null;
+        this.clientMarkers = {};
+        this.trackLayer = null;
+        this.layers = {};
+        this.layerControl = null;
+        this.osm = null;
+        this.googleSat = null;
     }
 
-    fitBounds() {
-        var bounds = new L.LatLngBounds(this.point1, this.point2).extend(this.point3);
-        this.map.fitBounds(bounds);
+    // A watcher function has signature
+    // watcher(track, trec, event)
+    registerTrackWatcher(fun) {
+        this.trackWatchers.push(fun);
     }
 
-    edit() {
-        var inst = this;
-        if (!this.marker1) {
-            this.marker1 = L.marker(this.point1, { draggable: true }).addTo(this.map);
-            this.marker1.on('drag dragend', () => {
-                inst.handleTranslate();
-            });
-        }
-        if (!this.marker2) {
-            this.marker2 = L.marker(this.point2, { draggable: true }).addTo(this.map);
-            this.marker2.on('drag dragend', () => {
-                inst.handleRotate();
-            });
-        }
-        this.marker1._bringToFront();
-        this.marker2._bringToFront();
+    getClockTime() {
+        return new Date() / 1000.0;
     }
 
-    handleTranslate() {
-        console.log("handleTranslate");
-        this.point1 = this.marker1.getLatLng();
-        this._updatePoints();
-        this.dump();
+    getPlayTime(t) {
+        var t = this.getClockTime();
+        var t0 = this.lastSeekTime;
+        var dt = (t - t0) * this.playSpeed;
+        this.setPlayTime(this.currentPlayTime + dt);
+        return this.currentPlayTime;
     }
 
-    handleRotate() {
-        console.log("handleRotate");
-        var point2 = this.marker2.getLatLng();
-        var h = L.GeometryUtil.bearing(this.point1, point2);
-        this.setHeading(h);
+    setPlayTime(t) {
+        this.lastSeekTime = this.getClockTime();
+        this.currentPlayTime = t;
+        if (!this.currentTrack) return;
+        var ret = WV.findPointByTime(this.currentTrack, t);
+        if (!ret) return;
+        this.setPoint(ret.nearestPt);
     }
 
-    setHeading(h) {
-        console.log("setHeading " + h);
-        this.heading = h;
-        this._updatePoints();
-    }
-
-    setWidth(w) {
-        console.log("setWidth " + w);
-        this.width = w;
-        this._updatePoints();
-    }
-
-    setHeight(h) {
-        console.log("setHeight " + h);
-        this.height = h;
-        this._updatePoints();
-    }
-
-    _updatePoints() {
-        console.log(" p1: " + this.point1);
-        //this.point2 = L.GeometryUtil.destination(this.point1, 90+this.heading, this.width);
-        //this.point3 = L.GeometryUtil.destination(this.point1, 180+this.heading, this.height);
-        this.point2 = L.GeometryUtil.destination(this.point1, this.heading, this.width);
-        this.point3 = L.GeometryUtil.destination(this.point1, 90 + this.heading, this.height);
-        if (this.overlay) this.overlay.reposition(this.point1, this.point2, this.point3);
-        this.updateGrips();
-        this.dump();
-    }
-
-    updateGrips(h) {
-        if (this.marker1) this.marker1.setLatLng(this.point1);
-        if (this.marker2) this.marker2.setLatLng(this.point2);
-        if (this.marker3) this.marker3.setLatLng(this.point3);
-    }
-
-    dump() {
-        var p1 = this.point1;
-        var obj = { 'heading': this.h12, 'origin': [p1.lat, p1.lng] };
-        console.log("map: " + JSON.stringify(obj));
+    setViewHome() {
+        var ll = this.homeLatLng;
+        this.map.setView(new L.LatLng(ll.lat, ll.lng), this.homeZoom);
     }
 }
 
-// A watcher function has signature
-// watcher(track, trec, event)
-WVL.registerTrackWatcher = function (fun) {
-    WVL.trackWatchers.push(fun);
-};
+var WVL = new WVLApp();
 
-WVL.getClockTime = function () {
-    return new Date() / 1000.0;
-};
-
-WVL.getPlayTime = function (t) {
-    var t = WVL.getClockTime();
-    var t0 = WVL.lastSeekTime;
-    var dt = (t - t0) * WVL.playSpeed;
-    WVL.setPlayTime(WVL.currentPlayTime + dt);
-    return WVL.currentPlayTime;
-};
-
-WVL.setPlayTime = function (t) {
-    WVL.lastSeekTime = WVL.getClockTime();
-    WVL.currentPlayTime = t;
-    if (!WVL.currentTrack) return;
-    var ret = WVL.findPointByTime(WVL.currentTrack, t);
-    if (!ret) return;
-    WVL.setPoint(ret.nearestPt);
-};
-
-WVL.setViewHome = function () {
-    var ll = WVL.homeLatLng;
-    WVL.map.setView(new L.LatLng(ll.lat, ll.lng), WVL.homeZoom);
-};
-
-WVL.distanceSquared = function (pt1, pt2) {
-    var dx = pt1[0] - pt2[0];
-    var dy = pt1[1] - pt2[1];
-    var d2 = dx * dx + dy * dy;
-    //console.log("dsq "+pt1+" "+pt2+"   d2: "+d2);
-    return d2;
-};
-
-// linear interp... 
-WVL.lerp = function (pt1, pt2, f, pt) {
-    var x = (1 - f) * pt1[0] + f * pt2[0];
-    var y = (1 - f) * pt1[1] + f * pt2[1];
-    return [x, y];
-};
 
 WVL.timerFun = function (e) {
     //var t = WVL.getPlayTime();
@@ -256,7 +140,7 @@ WVL.clickOnTrack = function (e, track) {
     console.log("shift: " + de.shiftKey);
     var pt = [e.latlng.lat, e.latlng.lng];
     console.log("pt: " + pt);
-    var ret = WVL.findNearestPoint(pt, track.latLng);
+    var ret = WV.findNearestPoint(pt, track.latLng);
     console.log("ret: " + JSON.stringify(ret));
     if (!ret) return;
     var i = ret.i;
@@ -287,7 +171,7 @@ WVL.dragPlacemark = function (e, trackDesc, gpos) {
     var placemark = trackDesc.placemark;
     E = e;
     if (!WVL.LOCK) {
-        var t1 = WVL.getClockTime();
+        var t1 = WV.getClockTime();
         var npt = placemark.getLatLng();
         //placemark.setLatLng(npt);
         var data = trackDesc.data;
@@ -300,7 +184,7 @@ WVL.dragPlacemark = function (e, trackDesc, gpos) {
         cs.update(npt.lat, npt.lng);
         console.log("cs after: " + JSON.stringify(cs));
         WVL.updateTrack(trackDesc.data);
-        var t2 = WVL.getClockTime();
+        var t2 = WV.getClockTime();
         console.log("updated in " + (t2 - t1) + " secs");
     }
 };
@@ -421,7 +305,7 @@ WVL.handleTrack = function (trackDesc, trackData, url, map) {
     WVL.tracks[name] = trackData;
     //console.log("handleTrailData " + url);
     WVL.computeTrackPoints(trackData);
-    trackData.trail = L.polyline(trackData.latLng, { color: '#3333ff', weight: 6 });
+    trackData.trail = L.polyline(trackData.latLng, { color: '#3333ff', weight: 5 });
     trackData.trail.on('click', function (e) {
         WVL.clickOnTrack(e, trackData);
     });
@@ -482,17 +366,6 @@ WVL.computeTrackPoints = function (trackData) {
     //console.log("latLng: "+latLng);
     trackData.latLng = latLng;
 };
-
-WVL.loadTrackFromAPI = function (trackDesc, map) {
-    //var url = "/api/v1/track/"+idmempark_Mar_23_2017_11_25_28_AM_2017-03-23_11-25-28";
-    var trackId = trackDesc.id;
-    var url = "/api/v1/track/" + trackId;
-    WV.getJSON(url, function (data) {
-        //console.log("GOT JSON: "+data);
-        WVL.handleTrack(trackDesc, data, url, map);
-    });
-};
-
 
 
 WVL.loadTrackFromFile = async function (trackDesc, url, map) {
@@ -607,150 +480,113 @@ WVL.loadTracksFromFile = async function (url, map) {
     return data;
 };
 
-/*
-  Linear search to find index i such that
 
-  recs[i-1].rt <= rt   &&   rt <= recs[i]
 
-  if rt < recs[0]                 returns i=0
-  if rt < recs[recs.length-1].rt  returns recs.length
-*/
-WVL.linSearch = function (recs, rt) {
-    for (var i = 0; i < recs.length; i++) {
-        if (recs[i].rt > rt) return i;
-    }
-    return i;
-};
-
-/*
-  Binary search.  Same contract as Linear search
-  but should be faster.
- */
-WVL.binSearch = function (recs, rt) {
-    var iMin = 0;
-    var iMax = recs.length - 1;
-
-    while (iMin < iMax) {
-        var i = Math.floor((iMin + iMax) / 2.0);
-        var rec = recs[i];
-        if (rec.rt == rt) return i + 1;
-        if (rt > rec.rt) {
-            iMin = i;
-        } else {
-            iMax = i;
-        }
-        if (iMin >= iMax - 1) break;
-    }
-    return iMin + 1;
-};
-
-WVL.testSearchFun1 = function (recs, searchFun) {
-    function correctPos(rt, recs, i) {
-        //console.log("rt: "+rt+" i: "+i);
-        if (i == 0) {
-            if (rt <= recs[0].rt) return true;
-            return false;
-        }
-        if (rt > recs[recs.length - 1].rt && i == recs.length) return true;
-        if (recs[i - 1].rt <= rt && rt <= recs[i].rt) return true;
-        return false;
-    }
-
-    //for (var i=0; i<recs.length; i++) {
-    //  console.log(i+" "+recs[i].rt);
-    //}
-    var errs = 0;
-    for (var i = 0; i < recs.length - 1; i++) {
-        var rt = recs[i].rt;
-        var ii = searchFun(recs, rt);
-        if (!correctPos(rt, recs, ii)) {
-            console.log("error:  rt " + rt + "  -->  " + ii);
-            errs++;
-        }
-        rt = (recs[i].rt + recs[i + 1].rt) / 2.0;
-        ii = searchFun(recs, rt);
-        if (!correctPos(rt, recs, ii)) {
-            console.log("error:  rt " + rt + "  -->  " + ii);
-            errs++;
-        }
-    }
-    return errs;
-};
-
-WVL.testSearch = function (nrecs) {
-    nrecs = nrecs | 100000;
-    console.log("WVL.testSearch " + nrecs);
-    recs = [];
-    for (var i = 0; i < nrecs; i++) {
-        recs.push({ i: i, rt: Math.random() * 100000000 });
-        //recs.push( {i: i, rt: Math.random()*10000 });
-    }
-    recs.sort(function (a, b) {
-        return a.rt - b.rt;
-    });
-    for (var i = 0; i < nrecs - 1; i++) {
-        if (recs[i].rt >= recs[i + 1].rt) {
-            console.log("**** testSearch: recs not sorted ****");
+// This class is used to draw indoor maps onto the Leaflet map.
+// We use a class that can handle rotation.
+WVL.ImageLayer = class {
+    constructor(imageUrl, opts) {
+        this.map = WVL.map;
+        this.marker1 = null;
+        this.marker2 = null;
+        this.marker3 = null;
+        if (!(opts.p1 && opts.width && opts.height)) {
+            console.log("**** bad arguments to WV.ImageLayer ****");
             return;
         }
-        if (recs[i].rt == recs[i + 1].rt) {
-            console.log("**** testSearch: recs not unique ****");
-            return;
+        this.width = opts.width;
+        this.height = opts.height;
+        this.heading = opts.heading || 0;
+        console.log("width: " + this.width);
+        console.log("height: " + this.height);
+        console.log("heading: " + this.heading);
+        this.point1 = new L.LatLng(opts.p1[0], opts.p1[1]);
+        this._updatePoints();
+        this.overlay = L.imageOverlay.rotated(imageUrl, this.point1, this.point2, this.point3, {
+            opacity: 0.8,
+            interactive: false
+        });
+        this.overlay.addTo(WVL.map);
+        //this.addGrips();
+        //this.fitBounds();
+    }
+
+    fitBounds() {
+        var bounds = new L.LatLngBounds(this.point1, this.point2).extend(this.point3);
+        this.map.fitBounds(bounds);
+    }
+
+    edit() {
+        var inst = this;
+        if (!this.marker1) {
+            this.marker1 = L.marker(this.point1, { draggable: true }).addTo(this.map);
+            this.marker1.on('drag dragend', () => {
+                inst.handleTranslate();
+            });
         }
-    }
-    console.log("Testing Linear Search");
-    var t1 = WVL.getClockTime();
-    var errs = WVL.testSearchFun1(recs, WVL.linSearch);
-    var t2 = WVL.getClockTime();
-    console.log("lin searched " + nrecs + " times in " + (t2 - t1) + " secs " + errs + " errors");
-    console.log("Testing binary Search");
-    var t1 = WVL.getClockTime();
-    var errs = WVL.testSearchFun1(recs, WVL.binSearch);
-    var t2 = WVL.getClockTime();
-    console.log("bin searched " + nrecs + " times in " + (t2 - t1) + " secs " + errs + " errors");
-};
-
-WVL.findPointByTime = function (track, rt) {
-    //console.log("WVL.findPointByTime "+rt);
-    //i = WVL.linSearch(rec.data.recs, rt);
-    var recs = track.recs;
-    var points = track.latLng;
-    var i = WVL.binSearch(recs, rt);
-    if (i == 0) {
-        return { i: i, f: 0, nearestPt: points[i] };
-    }
-    if (i >= points.length) {
-        i = points.length - 1;
-        return { i: i, f: 1, nearestPt: points[i] };
-    }
-    var i0 = i - 1;
-    var rt0 = recs[i0].rt;
-    var rt01 = recs[i].rt - rt0;
-    var f = (rt - rt0) / rt01;
-    //console.log("i0: "+i0+" i: "+i+"  f: "+f);
-    var p0 = points[i0];
-    var p1 = points[i];
-    //Cesium.Cartesian3.lerp(rec.points[i0], rec.points[i], f, pt);
-    var pt = WVL.lerp(points[i0], points[i], f, pt);
-    return { i: i, f: f, nearestPt: pt };
-};
-
-WVL.findNearestPoint = function (pt, points) {
-    console.log("findNearestPoint: pt: " + pt + " npoints: " + points.length);
-    if (points.length == 0) {
-        console.log("findNearestPoint called with no points");
-        null;
-    }
-    var d2Min = WVL.distanceSquared(pt, points[0]);
-    var iMin = 0;
-    for (var i = 1; i < points.length; i++) {
-        var d2 = WVL.distanceSquared(pt, points[i]);
-        if (d2 < d2Min) {
-            d2Min = d2;
-            iMin = i;
+        if (!this.marker2) {
+            this.marker2 = L.marker(this.point2, { draggable: true }).addTo(this.map);
+            this.marker2.on('drag dragend', () => {
+                inst.handleRotate();
+            });
         }
+        this.marker1._bringToFront();
+        this.marker2._bringToFront();
     }
-    return { 'i': iMin, nearestPt: points[iMin], 'd': Math.sqrt(d2Min) };
-};
 
+    handleTranslate() {
+        console.log("handleTranslate");
+        this.point1 = this.marker1.getLatLng();
+        this._updatePoints();
+        this.dump();
+    }
+
+    handleRotate() {
+        console.log("handleRotate");
+        var point2 = this.marker2.getLatLng();
+        var h = L.GeometryUtil.bearing(this.point1, point2);
+        this.setHeading(h);
+    }
+
+    setHeading(h) {
+        console.log("setHeading " + h);
+        this.heading = h;
+        this._updatePoints();
+    }
+
+    setWidth(w) {
+        console.log("setWidth " + w);
+        this.width = w;
+        this._updatePoints();
+    }
+
+    setHeight(h) {
+        console.log("setHeight " + h);
+        this.height = h;
+        this._updatePoints();
+    }
+
+    _updatePoints() {
+        console.log(" p1: " + this.point1);
+        //this.point2 = L.GeometryUtil.destination(this.point1, 90+this.heading, this.width);
+        //this.point3 = L.GeometryUtil.destination(this.point1, 180+this.heading, this.height);
+        this.point2 = L.GeometryUtil.destination(this.point1, this.heading, this.width);
+        this.point3 = L.GeometryUtil.destination(this.point1, 90 + this.heading, this.height);
+        if (this.overlay) this.overlay.reposition(this.point1, this.point2, this.point3);
+        this.updateGrips();
+        this.dump();
+    }
+
+    updateGrips(h) {
+        if (this.marker1) this.marker1.setLatLng(this.point1);
+        if (this.marker2) this.marker2.setLatLng(this.point2);
+        if (this.marker3) this.marker3.setLatLng(this.point3);
+    }
+
+    dump() {
+        var p1 = this.point1;
+        var obj = { 'heading': this.h12, 'origin': [p1.lat, p1.lng] };
+        console.log("map: " + JSON.stringify(obj));
+    }
+}
 
