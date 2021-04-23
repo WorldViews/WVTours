@@ -1,0 +1,178 @@
+<html>
+
+<head>
+    <script src="./js/libs/jquery-3.1.1.min.js"></script>
+    <script src="./js/Utils.js"></script>
+    <script src="./js/Display.js"></script>
+    <script src="./js/libs/math3d.js"></script>
+    <script src="./js/WVCoordSys.js"></script>
+    <script src="./js/WVL.js"></script>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+        integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+        crossorigin="" />
+    <!-- Make sure you put this AFTER Leaflet's CSS -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+        integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+        crossorigin=""></script>
+    <script src="./js/libs/Leaflet.geometryutils.js"></script>
+    <script src="./js/libs/Leaflet.ImageOverlay.Rotated.js"></script>
+
+    <title>WorldViews 360 Video Virtual Tours</title>
+
+    <style>
+        body {
+            background-color: rgb(157, 157, 179);
+            position: relative;
+        }
+
+        #videoPlayer {
+            height: 100%;
+            border-style: solid;
+            border-width: 1px
+        }
+
+        /* This gets created by display.js */
+        #videoDiv {
+            color: lightblue;
+            max-height: 100%;
+            display: block;
+            width: 100%;
+            height: 100%;
+            vertical-align: middle;
+        }
+
+        .float-container {
+            height: 95%;
+        }
+
+        .float-child {
+            min-width: 500px;
+            width: 50%;
+            float: left;
+            border: 0px solid red;
+        }
+
+        .master-child {
+            width: 100%;
+            float: left;
+        }
+
+        .inset {
+            right: 50px;
+            bottom: 50px;
+            width: 200px;
+            height: 200px;
+            position: absolute;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        #controls {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body style="margin:10px">
+    <div class="float-container">
+        <div class="float-child" id="leftdiv">
+            <div id="videoPlayer">
+            </div>
+        </div>
+        <div class="float-child" id="rightdiv">
+            <div id="map">
+            </div>
+        </div>
+    </div>
+    <div id="controls">
+        <button id="insetButton">inset</button>
+    </div>
+    <script>
+        var lvapp = null;
+        var tours = null;
+        var tourName = null;
+
+        function setModeSideBySide() {
+            console.log("setModeSideBySide");
+            //$("#leftdiv").css("class; float-child");
+            //$("#rightdiv").css("class; float-child");
+            $("#leftdiv").removeClass("master-child inset");
+            $("#leftdiv").addClass("float-child");
+            $("#rightdiv").removeClass("master-child inset");
+            $("#rightdiv").addClass("float-child");
+            $("#insetButton").html("inset");
+        }
+
+        function setModeMapInset() {
+            console.log("setModeMapInset");
+            $("#leftdiv").removeClass("float-child");
+            $("#leftdiv").addClass("master-child");
+            $("#rightDiv").removeClass("float-child");
+            $("#rightdiv").addClass("inset");
+            $("#insetButton").html("side by side");
+        }
+
+        // not able to get this to work...
+        function setModeVideoInset() {
+
+            $("#leftdiv").removeClass("float-child master-child");
+            $("#leftdiv").addClass("inset");
+            $("#rightdiv").removeClass("float-child inset");
+            $("#rightdiv").addClass("master-child");
+            $("#insetButton").html("inset");
+        }
+
+        $(document).ready(async function () {
+
+            //ltours = new LeafletTours();
+            //ltours.loadTours();
+            lvapp = new WVL.LeafletVideoApp();
+            window.lvapp = lvapp;
+            var toursUrl = "./data/tours_data.json";
+            var videoId = "z4nyiBTyeRI";
+            await lvapp.init(toursUrl, videoId);
+            console.log("=============== got tours =================");
+            console.log("WVL.tours", WVL.tracks);
+            var n = 0;
+            for (var tname in WVL.tracks) {
+                console.log("trail", tname);
+                n++;
+            }
+            console.log("num tracks", n);
+            console.log("===========");
+
+            $("#insetButton").click(() => {
+                console.log("click on insetButton");
+                if ($("#insetButton").html() == "inset") {
+                    setModeMapInset();
+                }
+                else {
+                    setModeSideBySide();
+                }
+            });
+
+            tourName = WV.getParameterByName("tour");
+            //tourName = tourName || "arboretum_path_1_vslam";
+            tourName = tourName || "ucsc_arboretum_path_1";
+            try {
+                WVL.setCurrentTrack(tourName, true);
+            }
+            catch (err) {
+                console.log("Error setting current track", err);
+            }
+            //WVL.setCurrentTrack("devils_slide_1");
+            //WVL.setCurrentTrack("ucsc_aroboretum_path_5");
+        });
+
+    </script>
+</body>
+
+</html>
