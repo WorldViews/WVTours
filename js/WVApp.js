@@ -27,6 +27,7 @@ class WVMapApp {
         this.layerControl = null;
         this.osm = null;
         this.googleSat = null;
+        this.tourDB = new WVTourDB(this);
     }
 
     // A watcher function has signature
@@ -61,60 +62,15 @@ class WVMapApp {
         this.map.setView(new L.LatLng(ll.lat, ll.lng), this.homeZoom);
     }
 
-    async setCurrentTrack(track, setMapView) {
-        console.log("-------------------------------");
-        if (typeof track == "string") {
-            var trackName = track;
-            track = this.tracks[trackName];
-            if (track == null) {
-                console.log("*** track not yet loaded", trackName);
-                var trackDesc = this.trackDescs[trackName];
-                if (trackDesc == null) {
-                    console.log("*** no such track as", trackName);
-                    return;
-                }
-                var dataUrl = trackDesc.dataUrl;
-                await this.loadTrackFromFile(trackDesc, dataUrl, this.map);
-            }
-            track = this.tracks[trackName];
-            if (track == null) {
-                console.log("*** unable to load track", trackName);
-            }
-        }
-
-        this.currentTrack = track;
-        var desc = track.desc;
-        console.log("setCurrentTrack id: " + desc.id);
-        var videoId = desc.youtubeId;
-        var videoDeltaT = desc.youtubeDeltaT;
-        if (this.display) {
-            this.display.playVideo(videoId);
-        }
-        console.log("videoId: " + videoId);
-        console.log("deltaT: " + videoDeltaT);
-        if (setMapView) {
-            if (!track.latLng) {
-                console.log("***** no latlng *****");
-                return;
-            }
-            var [lat, lng] = track.latLng[0];
-            //alert("lat lng "+lat+"    " + lng);
-            if (lat && lng) {
-                this.map.setView(new L.LatLng(lat, lng), 19, { animate: true });
-            }
-        }
-    }
-
-    dumpTracks() {
-        console.log("================")
-        console.log("tracks:");
-        for (var key in this.tracks) {
-            console.log("key", key, this.tracks[key]);
-        }
-        console.log("=================");
+    // for debugging, this can be called from the console
+    dump() {
+        this.tourDB.dumpTours();
     }
 }
 
+//
+// This is a subclass of MapApp using Leaflet.
+//
 class WVLApp extends WVMapApp {
 
     constructor() {
@@ -191,102 +147,48 @@ class WVLApp extends WVMapApp {
         map.addLayer(osm);
         //map.addLayer(googleSat);
 
-        //L.easyButton('fa-globe fa-fixed fa-lg', function (btn, map) {
-        //    this.setViewHome();
-        //}).addTo(map);
-
         this.cursor = L.marker([0, 0]);
         this.cursor.addTo(map);
         this.setPlayTime(0);
         this.addLayerControl();
     }
 
-    // this loads the top level tours file that has all the tours
-    // coordinate systems, indoor maps, etc.   It does not contain
-    // the path data for each tour.  Those are stored in separate
-    // JSON files
-    async loadTracksFromFile(url, map) {
-        console.log("**** loadTracksFromFile " + url);
-        if (!map) map = this.map;
-        var data = await WV.loadJSON(url);
-
-        // This will process all the records, and load the track descriptors
-        // into trackDescs for each track, but not load the path data.
-        await this.handleLayerRecs(data, url, map);
-        //
-        // This will actually load the paths data.
-        var lazy = true;
-        if (lazy) {
-            this.loadAllTracksData(map);
-        }
-        else {
-            await this.loadAllTracksData(map);
-        }
-        console.log("all tracks loaded");
-        return data;
+    // This causes the TourDB to access tours data and make
+    // callbacks when indoor map records, or tour path data
+    // are loaded.
+    async loadTours(url) {
+        return await this.tourDB.loadTours(url);
     }
 
-    async handleLayerRecs(tours, url, map) {
-        console.log("got tours data from " + url);
-        for (var i = 0; i < tours.records.length; i++) {
-            //tours.records.forEach(async trackDesc => {
-            var trackDesc = tours.records[i];
-            if (WV.match(trackDesc.recType, "IndoorMap")) {
-                console.log("**** indoor map ", trackDesc);
-                var imap = trackDesc;
-                var p1 = imap.p0;
-                var p2 = [p1[0] + .001, p1[1]];
-                var p3 = [p1[0], p1[1] + 0.001];
-                var imlayer = new WV.ImageLayer(imap.imageUrl, this, {
-                    p1: p1,
-                    width: imap.width,
-                    height: imap.height,
-                    heading: imap.heading
-                });
-                //	    var imlayer = new WV.ImageLayer(imap.imageUrl, {p1: p1, p2: p2, p3: p3});
-                this.indoorMaps[imap.id] = imlayer;
-                //imlayer.edit();
-                continue;
-            }
-            if (trackDesc.recType.toLowerCase() == "coordinatesystem") {
-                console.log("coordinateSystem " + JSON.stringify(trackDesc));
-                WV.addCoordinateSystem(trackDesc.coordSys, trackDesc);
-                continue;
-            }
-            if (trackDesc.recType != "robotTrail") {
-                continue;
-            }
-            var trackId = trackDesc.id;
-            //console.log("tour.tourId: " + trackId);
-            var dataUrl = trackDesc.dataUrl;
-            //console.log("getting", dataUrl);
-            this.trackDescs[trackId] = trackDesc;
-            console.log("skipping loading of", trackDesc.id);
+    // This is called by the TourDB when an indoor map record has been read
+    handleIndoorMap(rec) {
+        console.log("*** WVApp.handleIndoorMap ***");
+        if (!WV.match(rec.recType, "IndoorMap")) {
+            error("handleIndoorMap called with wrong record");
+            return;
         }
+        console.log("**** indoor map ", rec);
+        var imap = rec;
+        var p1 = imap.p0;
+        var p2 = [p1[0] + .001, p1[1]];
+        var p3 = [p1[0], p1[1] + 0.001];
+        var imlayer = new WV.ImageLayer(imap.imageUrl, this, {
+            p1: p1,
+            width: imap.width,
+            height: imap.height,
+            heading: imap.heading
+        });
+        //	    var imlayer = new WV.ImageLayer(imap.imageUrl, {p1: p1, p2: p2, p3: p3});
+        this.indoorMaps[imap.id] = imlayer;
     }
 
-    // This goes through all loaded trackDescs and reads their data files.
-    async loadAllTracksData(map) {
-        console.log("loadAllTracksData");
-        for (var id in this.trackDescs) {
-            console.log("loadTracksData id", id);
-            var trackDesc = this.trackDescs[id];
-            var dataUrl = trackDesc.dataUrl;
-            await this.loadTrackFromFile(trackDesc, dataUrl, map);
-        }
-    }
-
-    //
-    handleTrack(trackDesc, trackData, url, map) {
+    // This is called by the tourDB when a tour's track data
+    // has been loaded
+    handleTrack(tour, trackData) {
+        console.log("WVApp.handleTrack", tour);
         var inst = this;
-        var name = trackData.name;
-        name = trackDesc.id; //********* Not sure if this is safe!!!
-        console.log("handleTrack id:", trackDesc.id, " name:", name);
-        trackData.desc = trackDesc; //*** NOTE: these set up a circular reference
-        trackDesc.data = trackData;
-        this.tracks[name] = trackData;
-        //console.log("handleTrailData " + url);
-        this.computeTrackPoints(trackData);
+        var map = this.map;
+        var trackDesc = tour;
         trackData.trail = L.polyline(trackData.latLng, { color: '#3333ff', weight: 5 });
         trackData.trail.on('click', function (e) {
             inst.clickOnTrack(e, trackData);
@@ -317,7 +219,7 @@ class WVLApp extends WVMapApp {
             this.dragPlacemark(e, trackDesc, gpos);
         });
     }
-
+    
     updateTrack(trackData) {
         console.log("updateTrack");
         this.computeTrackPoints(trackData);
@@ -325,38 +227,55 @@ class WVLApp extends WVMapApp {
         trackData.trail.setLatLngs(trackData.latLng);
     }
 
-    computeTrackPoints(trackData) {
-        var desc = trackData.desc;
-        var recs = trackData.recs;
-        var h = 2;
-        var coordSys = trackData.coordinateSystem;
-        if (!coordSys) {
-            coordSys = desc.coordSys;
+    async setCurrentTrack(trackName, setMapView) {
+        console.log("-------------------------------");
+        console.log("setCurrentTrack", trackName);
+        var track = await this.tourDB.getTrackData(trackName);
+        /*
+        if (typeof track == "string") {
+            var trackName = track;
+            track = this.tracks[trackName];
+            if (track == null) {
+                console.log("*** track not yet loaded", trackName);
+                var trackDesc = this.trackDescs[trackName];
+                if (trackDesc == null) {
+                    console.log("*** no such track as", trackName);
+                    return;
+                }
+                var dataUrl = trackDesc.dataUrl;
+                await this.loadTrackFromFile(trackDesc, dataUrl, this.map);
+            }
+            track = this.tracks[trackName];
+            if (track == null) {
+                console.log("*** unable to load track", trackName);
+            }
         }
-        if (!coordSys) {
-            console.log("*** no coodinateSystem specified");
-            coordSys = "GEO";
+        */
+        this.currentTrack = track;
+        var desc = track.desc;
+        console.log("setCurrentTrack id: " + desc.id);
+        var videoId = desc.youtubeId;
+        var videoDeltaT = desc.youtubeDeltaT;
+        if (this.display) {
+            this.display.playVideo(videoId);
         }
-        var latLng = [];
-        for (var i = 0; i < recs.length; i++) {
-            var pos = recs[i].pos;
-            var lla = WV.xyzToLla(pos, coordSys);
-            //latLng.push([pos[0], pos[1]]);
-            latLng.push([lla[0], lla[1]]);
+        console.log("videoId: " + videoId);
+        console.log("deltaT: " + videoDeltaT);
+        if (setMapView) {
+            if (!track.latLng) {
+                console.log("***** no latlng *****");
+                return;
+            }
+            var [lat, lng] = track.latLng[0];
+            //alert("lat lng "+lat+"    " + lng);
+            if (lat && lng) {
+                this.map.setView(new L.LatLng(lat, lng), 19, { animate: true });
+            }
         }
-        //console.log("latLng: "+latLng);
-        trackData.latLng = latLng;
     }
 
-    async loadTrackFromFile(trackDesc, url, map) {
-        var data = await WV.loadJSON(url);
-        this.handleTrack(trackDesc, data, url, map);
-        return data;
-    }
 
-
-
-    dragPlacemark (e, trackDesc, gpos) {
+    dragPlacemark(e, trackDesc, gpos) {
         console.log("dragging placemark gpos: " + gpos);
         var placemark = trackDesc.placemark;
         if (!this.LOCK_PLACEMARKS) {
@@ -377,34 +296,34 @@ class WVLApp extends WVMapApp {
             console.log("updated in " + (t2 - t1) + " secs");
         }
     }
-    
+
     // set a cursor to given geo position
-    setPoint (latLng) {
+    setPoint(latLng) {
         if (!this.cursor) this.cursor = L.marker(latLng);
         this.cursor.setLatLng(latLng);
     }
-    
-    addLayerControl () {
+
+    addLayerControl() {
         var maps = {
             'OpenStreetMap': this.osm,
             'Google Sattelite': this.googleSat
         };
         this.layerControl = L.control.layers(maps, this.layers).addTo(this.map);
     };
-    
+
     /********************************************************************************/
     // Section for live updates of agents moving on map.  This uses
     // socket.io to get messages sent by various apps.  The messages can
     // specify positions of an agent.  This was used to show live drone
     // positions for example.
     //
-    watchPositions () {
+    watchPositions() {
         console.log("************** watch Positions *************");
         this.sock = io(this.SIO_URL);
         this.sock.on('position', this.handleSIOMessage);
     }
-    
-    handleSIOMessage (msg) {
+
+    handleSIOMessage(msg) {
         console.log("WVL received position msg: " + JSON.stringify(msg));
         var clientId = msg.clientId;
         var marker = this.clientMarkers[clientId];
@@ -419,13 +338,15 @@ class WVLApp extends WVMapApp {
             var marker = L.marker([lat, lng]).addTo(this.map);
             this.clientMarkers[clientId] = marker;
         }
-    }  
+    }
 
 }
 
-//var WVL = new WVLApp();
 
-
+//
+// This is the top level app that includes a Leaflet based map app
+// and a youtube video display.
+//
 WV.LeafletVideoApp = class {
     constructor() {
         // for debugging, pick lat lon we are familiar with
@@ -444,7 +365,7 @@ WV.LeafletVideoApp = class {
     async init(toursURL, videoId) {
         await this.initDisplay(videoId);
         if (toursURL) {
-            await this.loadTours(toursURL);
+            await this.mapApp.loadTours(toursURL);
         }
     }
 
@@ -455,9 +376,9 @@ WV.LeafletVideoApp = class {
         await this.display.playerReady();
     }
 
-    async loadTours(toursURL) {
-        return this.mapApp.loadTracksFromFile(toursURL);
-    }
+    //async loadTours(toursURL) {
+    //    return this.mapApp.loadTracksFromFile(toursURL);
+    //}
 
     startWatcher() {
         var inst = this;
@@ -468,7 +389,6 @@ WV.LeafletVideoApp = class {
         var t = this.display.getPlayTime();
         if (t == null)
             return;
-        //console.log("update t", t);
         this.mapApp.setPlayTime(t);
     }
 

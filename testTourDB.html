@@ -1,0 +1,77 @@
+<html>
+
+<head>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="./js/libs/math3d.js"></script>
+    <script src="./js/Utils.js"></script>
+    <script src="./js/Display.js"></script>
+    <script src="./js/WVLImageLayer.js"></script>
+    <script src="./js/WVCoordSys.js"></script>
+    <script src="./js/WVTourDB.js"></script>
+
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+        integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+        crossorigin="" />
+    <!-- Make sure you put this AFTER Leaflet's CSS -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+        integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+        crossorigin=""></script>
+    <script src="./js/libs/Leaflet.geometryutils.js"></script>
+    <script src="./js/libs/Leaflet.ImageOverlay.Rotated.js"></script>
+
+    <title>Test TrackDB</title>
+
+</head>
+
+<body style="margin:10px">
+    <div id="controls">
+        <button id="dump">Dump</button>
+    </div>
+    <div id="log"></div>
+    <script>
+        var tourDB = null;
+
+        function dump(tourDB) {
+            console.log("=============== got tours =================");
+            $("#log").html("Tours <br>");
+            console.log("tours", tourDB.tours);
+            console.log("tracks", tourDB.tracks);
+            var n = 0;
+            for (var tname in tourDB.tours) {
+                console.log("trail", tname);
+                var tour = tourDB.tours[tname];
+                //var track = tourDB.tracks[tname];
+                var track = tour.trackData;
+                console.log("tour", tour);
+                $("#log").append(tname+"<br>")
+                var trackStr = tour.description;
+                var n = -1;
+                if (track)
+                    n = track.recs.length;
+                //var trackStr = JSON.stringify(track, null, 3);
+                var hstr = `<pre>${trackStr} ${n} points</pre><br>`
+                $("#log").append(hstr);
+                n++;
+            }
+            console.log("num tours", n);
+            console.log("===========");
+        }
+
+        $(document).ready(async function () {
+            var toursUrl = "./data/tours_data.json";
+
+            tourDB = new WVTourDB();
+            await tourDB.loadTours(toursUrl);
+            dump(tourDB);
+            $("#dump").click(e => {
+                console.log("Dump...");
+                dump(tourDB);
+                tourDB.dumpTours();
+            });
+        });
+
+    </script>
+</body>
+
+</html>
