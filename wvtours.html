@@ -2,11 +2,12 @@
 
 <head>
     <script src="./js/libs/jquery-3.1.1.min.js"></script>
+    <script src="./js/libs/math3d.js"></script>
     <script src="./js/Utils.js"></script>
     <script src="./js/Display.js"></script>
-    <script src="./js/libs/math3d.js"></script>
+    <script src="./js/WVLImageLayer.js"></script>
     <script src="./js/WVCoordSys.js"></script>
-    <script src="./js/WVL.js"></script>
+    <script src="./js/WVApp.js"></script>
 
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
@@ -97,6 +98,7 @@
     </div>
     <script>
         var lvapp = null;
+        var mapApp = null;
         var tours = null;
         var tourName = null;
 
@@ -122,7 +124,7 @@
 
         // not able to get this to work...
         function setModeVideoInset() {
-
+            console.log("setModeVideoInset");
             $("#leftdiv").removeClass("float-child master-child");
             $("#leftdiv").addClass("inset");
             $("#rightdiv").removeClass("float-child inset");
@@ -134,15 +136,16 @@
 
             //ltours = new LeafletTours();
             //ltours.loadTours();
-            lvapp = new WVL.LeafletVideoApp();
+            lvapp = new WV.LeafletVideoApp();
+            mapApp = lvapp.mapApp;
             window.lvapp = lvapp;
             var toursUrl = "./data/tours_data.json";
             var videoId = "z4nyiBTyeRI";
             await lvapp.init(toursUrl, videoId);
             console.log("=============== got tours =================");
-            console.log("WVL.tours", WVL.tracks);
+            console.log("tours", mapApp.tracks);
             var n = 0;
-            for (var tname in WVL.tracks) {
+            for (var tname in mapApp.tracks) {
                 console.log("trail", tname);
                 n++;
             }
@@ -163,13 +166,13 @@
             //tourName = tourName || "arboretum_path_1_vslam";
             tourName = tourName || "ucsc_arboretum_path_1";
             try {
-                WVL.setCurrentTrack(tourName, true);
+                mapApp.setCurrentTrack(tourName, true);
             }
             catch (err) {
                 console.log("Error setting current track", err);
             }
-            //WVL.setCurrentTrack("devils_slide_1");
-            //WVL.setCurrentTrack("ucsc_aroboretum_path_5");
+            //mapApp.setCurrentTrack("devils_slide_1");
+            //mapApp.setCurrentTrack("ucsc_aroboretum_path_5");
         });
 
     </script>

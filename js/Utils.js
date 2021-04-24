@@ -44,6 +44,11 @@ WV.getBooleanParameterByName = function (name, defaultVal) {
     return val;
 }
 
+// return true if s1 and s2 are case insensitive match
+WV.match = function (s1, s2) {
+    return s1.toLowerCase() == s2.toLowerCase();
+}
+
 // return current clock time in seconds
 WV.getClockTime = function() {
 	return new Date() / 1000.0;
