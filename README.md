@@ -1,5 +1,7 @@
 # WVTours
-Web pages for viewing 360 video tours
+Web pages for viewing 360 video tours.  The page shows a 360 youtube video together with a map indicating
+trail positions.   The page is served at [https://worldviews.org/WVTours/wvtours.html](https://worldviews.org/WVTours/wvtours.html)
+
 
 # Usage
 
