@@ -104,15 +104,17 @@ class WVTourDB {
         }
     }
 
-    async getTrackData(tourName) {
+    // This returns the tour, and ensures that the track data
+    // for the tour has been loaded.
+    async getTourData(tourName) {
         var tour = this.tours[tourName];
         if (tour == null) {
             console.log("**** Error - no such tour as", tourName);
             return null;
         }
-        if (tour.trackData)
-            return tour.trackData;
-        return await this.loadTrack(tour, tour.dataUrl);
+        if (!tour.trackData)
+            await this.loadTrack(tour, tour.dataUrl);
+        return tour;
     }
 
     async loadTrack(tour, url) {

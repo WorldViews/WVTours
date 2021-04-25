@@ -78,6 +78,8 @@ class WVLApp extends WVMapApp {
         this.LOCK_PLACEMARKS = true;
     }
 
+    // doesn't do anything, but is example placeholder code for
+    // clicking on map.
     clickOnMap(e) {
         console.log("click on map e: " + e);
         console.log("latLng: " + e.latlng);
@@ -85,13 +87,19 @@ class WVLApp extends WVMapApp {
         console.log("shift: " + de.shiftKey);
     }
 
+    // The user clicked on a trail.  We need to determine
+    // if it is a different video, and if so switch to that video,
+    // and must determine the correct playtime for the point that
+    // was clicked on.
     clickOnTrack = function (e, track) {
         console.log("click on track e: " + e);
         console.log("name: " + track.name);
         console.log("trail: " + track.trail);
         console.log("latLng: " + e.latlng);
-        if (track != this.currentTrack)
-            this.setCurrentTrack(track);
+        if (track != this.currentTrack) {
+            // this may switch to new video.
+            this.setCurrentTrack(track.name);
+        }
         var de = e.originalEvent;
         console.log("shift: " + de.shiftKey);
         var pt = [e.latlng.lat, e.latlng.lng];
@@ -115,10 +123,14 @@ class WVLApp extends WVMapApp {
         });
     }
 
+    // if user clicks on placemark, animate movement to center that placemark
     clickOnPlacemark(e, trackDesc, gpos) {
         this.map.setView(new L.LatLng(gpos[0], gpos[1]), 18, { animate: true });
     }
 
+    //
+    // Create and set up a basic Leaflet map view
+    //
     initmap(latlng, bounds) {
         // set up the map
         var map = new L.Map('map');
@@ -220,37 +232,15 @@ class WVLApp extends WVMapApp {
         });
     }
     
-    updateTrack(trackData) {
-        console.log("updateTrack");
-        this.computeTrackPoints(trackData);
-        var desc = trackData.desc;
-        trackData.trail.setLatLngs(trackData.latLng);
-    }
-
+    // This sets the current track associated with the video
+    // that may be shown.   As time is updated, the placemark
+    // on this trail will be updated.  Optionally set the map
+    // view to show this track.
     async setCurrentTrack(trackName, setMapView) {
         console.log("-------------------------------");
         console.log("setCurrentTrack", trackName);
-        var track = await this.tourDB.getTrackData(trackName);
-        /*
-        if (typeof track == "string") {
-            var trackName = track;
-            track = this.tracks[trackName];
-            if (track == null) {
-                console.log("*** track not yet loaded", trackName);
-                var trackDesc = this.trackDescs[trackName];
-                if (trackDesc == null) {
-                    console.log("*** no such track as", trackName);
-                    return;
-                }
-                var dataUrl = trackDesc.dataUrl;
-                await this.loadTrackFromFile(trackDesc, dataUrl, this.map);
-            }
-            track = this.tracks[trackName];
-            if (track == null) {
-                console.log("*** unable to load track", trackName);
-            }
-        }
-        */
+        var tour = await this.tourDB.getTourData(trackName);
+        var track = tour.trackData;
         this.currentTrack = track;
         var desc = track.desc;
         console.log("setCurrentTrack id: " + desc.id);
@@ -274,7 +264,9 @@ class WVLApp extends WVMapApp {
         }
     }
 
-
+    // This is not currently tested or fully functional.  It
+    // was used in an earlier version as part of a mechanism for
+    // adjusting trails.
     dragPlacemark(e, trackDesc, gpos) {
         console.log("dragging placemark gpos: " + gpos);
         var placemark = trackDesc.placemark;
@@ -297,12 +289,24 @@ class WVLApp extends WVMapApp {
         }
     }
 
+    // used with drag placemark to update all points on path
+    // to new positions.
+    updateTrack(trackData) {
+        console.log("updateTrack");
+        this.computeTrackPoints(trackData);
+        var desc = trackData.desc;
+        trackData.trail.setLatLngs(trackData.latLng);
+    }
+
+
     // set a cursor to given geo position
     setPoint(latLng) {
         if (!this.cursor) this.cursor = L.marker(latLng);
         this.cursor.setLatLng(latLng);
     }
 
+    // Set up Leaflet layer contrl (shows in upper right) that has map layer
+    // types, and will show trail types.
     addLayerControl() {
         var maps = {
             'OpenStreetMap': this.osm,
@@ -323,6 +327,7 @@ class WVLApp extends WVMapApp {
         this.sock.on('position', this.handleSIOMessage);
     }
 
+    // handle a socket.io message that proves lat and lon for a named client.
     handleSIOMessage(msg) {
         console.log("WVL received position msg: " + JSON.stringify(msg));
         var clientId = msg.clientId;
@@ -376,15 +381,14 @@ WV.LeafletVideoApp = class {
         await this.display.playerReady();
     }
 
-    //async loadTours(toursURL) {
-    //    return this.mapApp.loadTracksFromFile(toursURL);
-    //}
-
+    // start an update interval timer.
     startWatcher() {
         var inst = this;
         this.watcherHandle = setInterval(() => inst.update(), 250);
     }
 
+    // This is causes the place markers for the video position to
+    // get updated.
     update() {
         var t = this.display.getPlayTime();
         if (t == null)
