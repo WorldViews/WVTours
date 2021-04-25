@@ -57,7 +57,9 @@ However, for a given tour, calling
 ```
 var trackData = await tdb.getTourData(tourName)
 ```
-Will return the trackData when it becomes available.
+Will return the trackData if it is has already been loaded, and otherwise will immediately begin reading it and return trackData when it becomes available.
+
+
 
 
 
