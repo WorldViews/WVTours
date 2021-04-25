@@ -58,12 +58,6 @@ WV.Display = class {
         $("#imageView").attr('src', imgURL);
     }
 
-    showYoutubeVideo(imgURL) {
-        $("#imageView").attr('src', url);
-        //$("#mainScreen").html();
-
-    }
-
     setupYoutubeAPI() {
         console.log("setupYoutubeAPI");
         var tag = document.createElement('script');
@@ -149,12 +143,13 @@ WV.Display = class {
         this.player.setSphericalProperties({yaw});
     }
 
-    playVideo(idOrURL) {
+    playVideo(idOrURL, playTime) {
+        console.log("Display.playVideo", idOrURL, playTime);
         if (idOrURL) {
             if (idOrURL.startsWith("http"))
-                this.player.loadVideoByUrl(idOrURL);
+                this.player.loadVideoByUrl(idOrURL, playTime);
             else
-                this.player.loadVideoById(idOrURL);
+                this.player.loadVideoById(idOrURL, playTime);
         }
         this.player.playVideo();
     }

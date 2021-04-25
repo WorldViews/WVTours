@@ -87,34 +87,36 @@ class WVLApp extends WVMapApp {
         console.log("shift: " + de.shiftKey);
     }
 
-    // The user clicked on a trail.  We need to determine
+    // The user clicked on a trail track.  We need to determine
     // if it is a different video, and if so switch to that video,
     // and must determine the correct playtime for the point that
     // was clicked on.
-    clickOnTrack = function (e, track) {
+    clickOnTrack = function (e, tour, track) {
         console.log("click on track e: " + e);
         console.log("name: " + track.name);
-        console.log("trail: " + track.trail);
+        console.log("tour.id", tour.id);
         console.log("latLng: " + e.latlng);
-        if (track != this.currentTrack) {
-            // this may switch to new video.
-            this.setCurrentTrack(track.name);
-        }
+        //if (track != this.currentTrack) {
+        //    // this may switch to new video.
+        //    this.setCurrentTrack(tour.id);
+        //}
         var de = e.originalEvent;
-        console.log("shift: " + de.shiftKey);
         var pt = [e.latlng.lat, e.latlng.lng];
-        console.log("pt: " + pt);
         var ret = WV.findNearestPoint(pt, track.latLng);
         console.log("ret: " + JSON.stringify(ret));
         if (!ret) return;
         var i = ret.i;
         var trec = track.recs[i];
-        console.log("trec: " + JSON.stringify(trec));
+        console.log("trec:", trec);
         if (!trec) return;
         var rt = trec.rt;
         console.log("****** seek to " + rt);
         if (this.display) {
             this.display.setPlayTime(rt);
+        }
+        if (track != this.currentTrack) {
+            // this may switch to new video.
+            this.setCurrentTrack(tour.id, false, rt);
         }
         var latLng = [trec.pos[0], trec.pos[1]];
         this.setPoint(latLng);
@@ -203,7 +205,7 @@ class WVLApp extends WVMapApp {
         var trackDesc = tour;
         trackData.trail = L.polyline(trackData.latLng, { color: '#3333ff', weight: 5 });
         trackData.trail.on('click', function (e) {
-            inst.clickOnTrack(e, trackData);
+            inst.clickOnTrack(e, tour, trackData);
         });
         //trackData.trail.addTo(map);
         var trackLayerName = trackDesc.layerName;
@@ -236,9 +238,9 @@ class WVLApp extends WVMapApp {
     // that may be shown.   As time is updated, the placemark
     // on this trail will be updated.  Optionally set the map
     // view to show this track.
-    async setCurrentTrack(trackName, setMapView) {
+    async setCurrentTrack(trackName, setMapView, playTime) {
         console.log("-------------------------------");
-        console.log("setCurrentTrack", trackName);
+        console.log("setCurrentTrack", trackName, setMapView, playTime);
         var tour = await this.tourDB.getTourData(trackName);
         var track = tour.trackData;
         this.currentTrack = track;
@@ -247,7 +249,7 @@ class WVLApp extends WVMapApp {
         var videoId = desc.youtubeId;
         var videoDeltaT = desc.youtubeDeltaT;
         if (this.display) {
-            this.display.playVideo(videoId);
+            this.display.playVideo(videoId, playTime);
         }
         console.log("videoId: " + videoId);
         console.log("deltaT: " + videoDeltaT);
@@ -299,7 +301,8 @@ class WVLApp extends WVMapApp {
     }
 
 
-    // set a cursor to given geo position
+    // set a cursor to given geo position.  This is used during
+    // playback to update position corresponding to camera position
     setPoint(latLng) {
         if (!this.cursor) this.cursor = L.marker(latLng);
         this.cursor.setLatLng(latLng);
