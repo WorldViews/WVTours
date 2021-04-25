@@ -16,14 +16,13 @@ or just ```python -m http.server 80```
 
 Then in a browser access http://localhost/wvtours.html
 
-# Database Format
+# Database Access and File Format
 
 The database consists of a master file called tours_data.json which lists the collection of tours
 together with a limitted amount of metadata for each tour.   Additionally each tour has a separate
 JSON path file listing the paths and timing.   Some of the paths included here were produced by
 experiments with robots or various camera systems, and contain extraneous metadata.   For the
-purposes of this application the only metadata for each tour is its id, description, and dataURL
-for accessing the path
+purposes of this application the relevant metadata are the fields shown here
 
 | Field      |    Meaning      |
 |------------|-----------------|
@@ -34,11 +33,33 @@ for accessing the path
 | dataUrl     | The URL of the path data file |
 | youtubeId   | The unique youtuve video id   |
 | youtubeDeltaT | The relative difference between video playTime and path position along a trail. |
-| coordSys    | An optional coordinate system for paths that may be in cartesian coordinates, say 
-                building coordinates.   If not coodinates are given, geo coordinates latitide, longitude
-                are assumed.
+| coordSys    | An optional coordinate system for paths that may be in cartesian coordinates, say building coordinates.   If not coordSys is *geo* or is not given, geographic  coordinates (latitide, longitude) are assumed.
+
+In addition to the records for each tour in the master file, each tour has its own path file.  Various metadata may be included but the relevant fields for this
+application are
+
+| Field      |    Meaning      |
+|------------|-----------------|
+| startTime  | this can be given as an absolute time since epoc.   However this the path trails are specified as relative times, so for the purpose of playing video matching trail positions, this is not used. |
+| duration   |  The length of the trail / video  |
+| recs       |  List of JSON's containing *pos*, *rt* and *time*, where *pos* is position [x,y] or [x,y,z], *rt* is relative time. |
  
- 
+The database can be accessed using the JavaScript class TourDB.  This usage is
+
+```
+var tdb = new TourDB()
+await tdb.loadTours("./data/tour_data.json")
+```
+
+This will create a tour db, and load the master file.  It also will begin loading all tours, but it returns as soon as the master file
+has been successfully read and processed, it does not wait until all paths are loaded, which could take a long time if there are many paths.
+However, for a given tour, calling
+```
+var trackData = await tdb.getTourData(tourName)
+```
+Will return the trackData when it becomes available.
+
+
 
 
 
