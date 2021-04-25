@@ -28,9 +28,17 @@ for accessing the path
 | Field      |    Meaning      |
 |------------|-----------------|
 | id          | Unique identifier for the tour |
+| recType     | Type of record - should be *robotTour* for a tour |
 | description | Short text description         |
 | robotType   | The collection mechanism, e.g. drone, wheelchar, robot, etc. |
 | dataUrl     | The URL of the path data file |
+| youtubeId   | The unique youtuve video id   |
+| youtubeDeltaT | The relative difference between video playTime and path position along a trail. |
+| coordSys    | An optional coordinate system for paths that may be in cartesian coordinates, say 
+                building coordinates.   If not coodinates are given, geo coordinates latitide, longitude
+                are assumed.
+ 
+ 
 
 
 
