@@ -79,7 +79,6 @@
 
         #controls {
             margin-top: 10px;
-            text-align: center;
         }
     </style>
 </head>
@@ -96,8 +95,7 @@
         </div>
     </div>
     <div id="controls">
-        <button id="insetButton" style="height:28px; float:left">inset</button>
-        <select id="tours" style="height:28px; float:right;"></select>
+        <button id="insetButton">inset</button>
     </div>
     <script>
         var lvapp = null;
@@ -135,21 +133,6 @@
             $("#insetButton").html("inset");
         }
 
-        function showTourList() {
-            var tours = lvapp.getTourDB().getTourArray();
-            tours.forEach(tour => {
-                var id = tour.id;
-                var desc = tour.description || tour.name || tour.id;
-                console.log(id, desc);
-                $("#tours").append(`<option value="${id}">${desc}</option>`);     
-            });
-            $("#tours").change(e => {
-                var id = $("#tours").val();
-                console.log("got id", id);
-                mapApp.setCurrentTrack(id, true);
-            })
-        }
-
         $(document).ready(async function () {
 
             //ltours = new LeafletTours();
@@ -169,7 +152,6 @@
             }
             console.log("num tracks", n);
             console.log("===========");
-            showTourList();
 
             $("#insetButton").click(() => {
                 console.log("click on insetButton");

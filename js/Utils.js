@@ -44,6 +44,15 @@ WV.getBooleanParameterByName = function (name, defaultVal) {
     return val;
 }
 
+// Function for comparing strings in sort
+WV.strCmp = function(s1, s2) {
+    if (s1 < s2)
+        return -1;
+    if (s2 < s1)
+        return 1;
+    return 0;
+}
+
 // return true if s1 and s2 are case insensitive match
 WV.match = function (s1, s2) {
     return s1.toLowerCase() == s2.toLowerCase();

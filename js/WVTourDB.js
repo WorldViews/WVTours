@@ -54,6 +54,12 @@ class WVTourDB {
         return toursData;
     }
 
+    getTourArray() {
+        var tourArray = Object.values(this.tours);
+        tourArray.sort((tour1, tour2) => WV.strCmp(tour1.description, tour2.description));
+        return tourArray;
+    }
+
     // This loads a tours collection.  The records
     // we care about are for coordinate systems, indoor maps,
     // and trails.  Other record types are ignored.

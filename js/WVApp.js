@@ -368,6 +368,9 @@ WV.LeafletVideoApp = class {
         this.startWatcher();
     }
 
+    getMapApp() { return this.mapApp; }
+    getTourDB() { return this.mapApp.tourDB; }
+
     // move the primary initialization to an init
     // function, so it can be an async function.
     async init(toursURL, videoId) {
