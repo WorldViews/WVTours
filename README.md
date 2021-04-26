@@ -66,7 +66,7 @@ motions, such as using OpenVSLAM.  A coordinate system record looks like this
 The database can be accessed using the JavaScript class TourDB.  This usage is
 
 ```
-var tdb = new TourDB()
+var tdb = new WVTourDB()
 await tdb.loadTours("./data/tour_data.json")
 ```
 
