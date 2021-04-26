@@ -1,6 +1,7 @@
 # WVTours
-Web pages for viewing video tours.  Most of the video is 360, but any video can be used that has matching GPS trails, and some of the
-video is captured by drones.  The page shows a youtube video together with a map indicating trail positions.   The page is served at
+Web pages for viewing video tours.  Most of the video is 360, and was collected with a camera being carried, or mounted on a wheelchair,
+but any video can be used that has matching GPS trails, and some of the video is standard HD captured by drones.  The main webpage of this
+repo shows a youtube video together with a map indicating trail positions.   The page is served at
 [https://worldviews.org/WVTours/wvtours.html](https://worldviews.org/WVTours/wvtours.html)
 
 
