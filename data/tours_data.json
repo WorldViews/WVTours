@@ -3,6 +3,16 @@
    "records": [
       {
          "recType": "CoordinateSystem",
+         "coordSys": "SFBG_Childrens_Garden1",
+         "lat": 37.76684,
+          "lon": -122.4728,
+         "alt": 41.0,
+         "sx": 1.44,
+         "sy": 1.44,
+         "heading": 10.0
+      },
+      {
+         "recType": "CoordinateSystem",
          "coordSys": "UCSC_Arboretum1",
          "lat": 36.983298,
          "lon": -122.06129,
@@ -196,6 +206,19 @@
          "youtubeId": "3puwnuz2wvY",
          "youtubeDeltaT": 0,
          "coordSys": "UCSC_Arboretum5"
+      },
+      {
+         "id": "sfbg_childrens_garden_path_1",
+         "site": "SFBG Children's Garden",
+         "recType": "robotTrail",
+         "robotType": "wheelchair",
+         "description": "SFBG Children's Garden",
+         "tourName": "arboretum_path_3",
+         "dataUrl": "./data/paths/sfbg_childrens_garden_path_1_vslam.json",
+         "height": 0.0,
+         "youtubeId": "ewf6u6if-Fg",
+         "youtubeDeltaT": 0,
+         "coordSys": "SFBG_Childrens_Garden1"
       },
       {
          "id": "hiller_lobby_path_1",
