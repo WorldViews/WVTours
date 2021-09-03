@@ -150,6 +150,11 @@
             })
         }
 
+        function selectTourInList(id)
+        {
+            $("#tours").val(id);   
+        }
+
         $(document).ready(async function () {
 
             //ltours = new LeafletTours();
@@ -187,6 +192,7 @@
             tourName = tourName || "sfbg_childrens_garden_path_1";
             try {
                 mapApp.setCurrentTrack(tourName, true);
+                selectTourInList(tourName);
             }
             catch (err) {
                 console.log("Error setting current track", err);
